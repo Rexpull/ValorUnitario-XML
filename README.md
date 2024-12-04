@@ -6,3 +6,5 @@ Corretor de XML problematicos.
 2* Tag <Dest> indevida no XML.
 
 3* Fuso Horario indevido (Z)
+
+4* Somatorio dos valores difere do totalizador da nota

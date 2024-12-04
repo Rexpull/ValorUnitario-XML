@@ -19,6 +19,7 @@ def calculate_correct_values(xml_content):
         total_vProd = Decimal('0.00')
         total_vOutro = Decimal('0.00')
 
+        # Corrige valores de vProd e ajusta vOutro
         for det in root.xpath('.//nfe:det', namespaces=ns):
             prod = det.find('nfe:prod', namespaces=ns)
             
@@ -47,24 +48,55 @@ def calculate_correct_values(xml_content):
             
             total_vProd += correct_vProd
 
+        # Atualiza os totalizadores
         icmsTot = root.find('.//nfe:total/nfe:ICMSTot', namespaces=ns)
         current_total_vOutro = Decimal(icmsTot.find('nfe:vOutro', namespaces=ns).text) if icmsTot.find('nfe:vOutro', namespaces=ns) is not None else Decimal('0.00')
         icmsTot.find('nfe:vProd', namespaces=ns).text = str(total_vProd)
         icmsTot.find('nfe:vOutro', namespaces=ns).text = str((current_total_vOutro + total_vOutro).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
 
+        # Recalcula o vNF (valor total da nota fiscal)
+        total_vDesc = Decimal(icmsTot.find('nfe:vDesc', namespaces=ns).text) if icmsTot.find('nfe:vDesc', namespaces=ns) is not None else Decimal('0.00')
+        total_vFrete = Decimal(icmsTot.find('nfe:vFrete', namespaces=ns).text) if icmsTot.find('nfe:vFrete', namespaces=ns) is not None else Decimal('0.00')
+        total_vSeg = Decimal(icmsTot.find('nfe:vSeg', namespaces=ns).text) if icmsTot.find('nfe:vSeg', namespaces=ns) is not None else Decimal('0.00')
+        total_vST = Decimal(icmsTot.find('nfe:vST', namespaces=ns).text) if icmsTot.find('nfe:vST', namespaces=ns) is not None else Decimal('0.00')
+        total_vIPI = Decimal(icmsTot.find('nfe:vIPI', namespaces=ns).text) if icmsTot.find('nfe:vIPI', namespaces=ns) is not None else Decimal('0.00')
+
+        new_vNF = (
+            total_vProd +
+            (current_total_vOutro + total_vOutro) +
+            total_vFrete +
+            total_vSeg +
+            total_vST +
+            total_vIPI -
+            total_vDesc
+        ).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+        icmsTot.find('nfe:vNF', namespaces=ns).text = str(new_vNF)
+
+        # Ajusta o primeiro vPag encontrado
+        detPag = root.find('.//nfe:pag/nfe:detPag', namespaces=ns)
+        if detPag is not None:
+            detPag.find('nfe:vPag', namespaces=ns).text = str(new_vNF)
+
+        # Remove namespaces para salvar o XML
         for elem in root.getiterator():
             if not hasattr(elem.tag, 'find'): continue
             i = elem.tag.find('}')
             if i > 0:
                 elem.tag = elem.tag[i + 1:]
 
+        # Converte o XML modificado para string
         modified_xml = ET.tostring(root, pretty_print=True, xml_declaration=True, encoding='UTF-8').decode('utf-8')
 
+        # Copia para a área de transferência
         pyperclip.copy(modified_xml)
-        messagebox.showinfo("Sucesso", "XML foi corrigido e está na sua área de transferência!")
+        messagebox.showinfo("Sucesso", f"XML corrigido com sucesso! o XML está na sua área de transferência! Novo vNF: {new_vNF}")
 
     except Exception as e:
-        messagebox.showerror("Error", str(e))
+        messagebox.showerror("Erro", f"Erro ao corrigir XML: {e}")
+
+
+
 
 def remove_dest_tag(xml_content):
     try:
