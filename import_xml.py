@@ -61,6 +61,7 @@ def calculate_correct_values(xml_content):
         total_vST = Decimal(icmsTot.find('nfe:vST', namespaces=ns).text) if icmsTot.find('nfe:vST', namespaces=ns) is not None else Decimal('0.00')
         total_vIPI = Decimal(icmsTot.find('nfe:vIPI', namespaces=ns).text) if icmsTot.find('nfe:vIPI', namespaces=ns) is not None else Decimal('0.00')
 
+        current_vNF = Decimal(icmsTot.find('nfe:vNF', namespaces=ns).text)
         new_vNF = (
             total_vProd +
             (current_total_vOutro + total_vOutro) +
@@ -73,10 +74,13 @@ def calculate_correct_values(xml_content):
 
         icmsTot.find('nfe:vNF', namespaces=ns).text = str(new_vNF)
 
-        # Ajusta o primeiro vPag encontrado
+        # Calcula a diferença e ajusta o primeiro vPag
+        difference_vNF = (new_vNF - current_vNF).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         detPag = root.find('.//nfe:pag/nfe:detPag', namespaces=ns)
         if detPag is not None:
-            detPag.find('nfe:vPag', namespaces=ns).text = str(new_vNF)
+            current_vPag = Decimal(detPag.find('nfe:vPag', namespaces=ns).text)
+            new_vPag = (current_vPag + difference_vNF).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            detPag.find('nfe:vPag', namespaces=ns).text = str(new_vPag)
 
         # Remove namespaces para salvar o XML
         for elem in root.getiterator():
