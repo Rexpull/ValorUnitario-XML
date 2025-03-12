@@ -18,6 +18,7 @@ def calculate_correct_values(xml_content):
 
         total_vProd = Decimal('0.00')
         total_vOutro = Decimal('0.00')
+        total_vDesc = Decimal('0.00')
 
         # Corrige valores de vProd e ajusta vOutro
         for det in root.xpath('.//nfe:det', namespaces=ns):
@@ -48,11 +49,17 @@ def calculate_correct_values(xml_content):
             
             total_vProd += correct_vProd
 
+            # Soma todos os valores de <vDesc> dos itens
+            vDesc_elem = prod.find('nfe:vDesc', namespaces=ns)
+            if vDesc_elem is not None:
+                total_vDesc += Decimal(vDesc_elem.text)
+
         # Atualiza os totalizadores
         icmsTot = root.find('.//nfe:total/nfe:ICMSTot', namespaces=ns)
         current_total_vOutro = Decimal(icmsTot.find('nfe:vOutro', namespaces=ns).text) if icmsTot.find('nfe:vOutro', namespaces=ns) is not None else Decimal('0.00')
         icmsTot.find('nfe:vProd', namespaces=ns).text = str(total_vProd)
         icmsTot.find('nfe:vOutro', namespaces=ns).text = str((current_total_vOutro + total_vOutro).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
+        icmsTot.find('nfe:vDesc', namespaces=ns).text = str(total_vDesc)
 
         # Recalcula o vNF (valor total da nota fiscal)
         total_vDesc = Decimal(icmsTot.find('nfe:vDesc', namespaces=ns).text) if icmsTot.find('nfe:vDesc', namespaces=ns) is not None else Decimal('0.00')
